@@ -8,6 +8,9 @@ if (renderingPolicy != 'native') {
 
 def distribution = providers.gradleProperty('projectmDistribution').getOrElse('github')
 if (!(distribution in ['github', 'fdroid'])) throw new GradleException('projectmDistribution must be github or fdroid')
+// Meta Quest immersive build (docs/quest/README.md): compiles the OpenXR host into libprojectmtv.so and
+// links the Khronos loader. Off by default, so the published TV/phone core has no OpenXR dependency.
+def quest = providers.gradleProperty('projectmQuest').map { it.toBoolean() }.getOrElse(false)
 apply plugin: 'com.android.library'
 def generatedDistribution = layout.buildDirectory.dir('generated/preset-distribution')
 def starterTask
@@ -37,6 +40,7 @@ android {
     ndkVersion = "27.3.13750724"
     buildFeatures {
         buildConfig = true
+        prefab = quest  // the OpenXR loader AAR exposes its headers and library as a Prefab package
     }
     if (distribution == 'fdroid') {
         sourceSets.main.assets.setSrcDirs([generatedDistribution.get().dir('starter-assets').asFile])
@@ -49,11 +53,12 @@ android {
         externalNativeBuild {
             cmake {
                 arguments "-DPROJECTMTV_RENDERING_POLICY=${renderingPolicy}"
+                if (quest) arguments "-DPROJECTMTV_QUEST=ON"
                 cppFlags "-std=c++17"
             }
         }
         ndk {
-            abiFilters "armeabi-v7a", "arm64-v8a"
+            if (quest) abiFilters "arm64-v8a" else abiFilters "armeabi-v7a", "arm64-v8a"
         }
     }
     testOptions {
@@ -79,4 +84,5 @@ if (starterTask != null) tasks.named('preBuild').configure { dependsOn(starterTa
 
 dependencies {
     testImplementation 'junit:junit:4.13.2'
+    if (quest) implementation 'org.khronos.openxr:openxr_loader_for_android:1.1.65'
 }

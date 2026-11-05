@@ -6,7 +6,13 @@ def baseVersionCommit = "8b70620339018cfaf5ac05acdb4ea8104dc2eb59"
 
 // Keep the default TV tasks and artifact paths stable for F-Droid and device tooling.
 def touchscreen = providers.gradleProperty("androidTouchscreen").map { it.toBoolean() }.getOrElse(false)
-def appLabel = touchscreen ? "ProjectM Android" : "ProjectM TV"
+// Meta Quest immersive build (-PprojectmQuest=true, docs/quest/README.md): the OpenXR host in :core,
+// the Quest manifest overlay and QuestActivity, arm64-v8a only. Debug and release variants only.
+def quest = providers.gradleProperty("projectmQuest").map { it.toBoolean() }.getOrElse(false)
+if (quest && touchscreen) {
+    throw new GradleException('projectmQuest and androidTouchscreen are mutually exclusive')
+}
+def appLabel = quest ? "ProjectM Quest" : touchscreen ? "ProjectM Android" : "ProjectM TV"
 def distribution = providers.gradleProperty('projectmDistribution').getOrElse('github')
 if (!(distribution in ['github', 'fdroid'])) {
     throw new GradleException('projectmDistribution must be github or fdroid')
@@ -42,15 +48,16 @@ android {
     // the app strips the engine's native library with it.
     ndkVersion "27.3.13750724"
     defaultConfig {
-        applicationId touchscreen ? "nl.neerdael.projectm" : "nl.neerdael.projectmtv"
+        applicationId quest ? "nl.neerdael.projectmquest" : touchscreen ? "nl.neerdael.projectm" : "nl.neerdael.projectmtv"
         buildConfigField "boolean", "TOUCHSCREEN", touchscreen.toString()
         buildConfigField "boolean", "FDROID", fdroid.toString()
-        buildConfigField "String", "APK_PREFIX", touchscreen ? '"projectM-Android-"' : '"projectM-TV-"'
-        manifestPlaceholders = [leanbackRequired: !touchscreen, touchscreenRequired: touchscreen,
+        buildConfigField "String", "APK_PREFIX", quest ? '"projectM-Quest-"' : touchscreen ? '"projectM-Android-"' : '"projectM-TV-"'
+        manifestPlaceholders = [leanbackRequired: !touchscreen && !quest, touchscreenRequired: touchscreen,
                                 appTheme: touchscreen ? "@style/Theme.Touchscreen" : "@style/Theme.Leanback"]
         resValue "string", "app_name", appLabel
-        minSdkVersion 21
+        minSdkVersion quest ? 29 : 21  // Horizon OS is Android 10+; AudioRecord float reads need 23
         targetSdkVersion 34
+        if (quest) ndk { abiFilters "arm64-v8a" }
         testInstrumentationRunner "com.example.projectm.visualizer.MusicCategoryInstrumentation"
         versionCode = releaseCode.toInteger()
         versionName = releaseVersion + (System.getenv("VERSION_SUFFIX") ?: "")
@@ -110,6 +117,10 @@ android {
     }
     sourceSets.main.java.srcDir "src/${distribution}/java"
     sourceSets.test.java.srcDir fdroid ? 'src/testFdroid/java' : 'src/testGithub/java'
+    if (quest) {
+        sourceSets.main.java.srcDir "src/quest/java"
+        [sourceSets.debug, sourceSets.release].each { it.manifest.srcFile "src/quest/AndroidManifest.xml" }
+    }
     if (touchscreen) {
         [sourceSets.debug, sourceSets.release, sourceSets.profile].each { it.res.srcDir "src/touch/res" }
         sourceSets.debug.manifest.srcFile "src/touch/AndroidManifest.xml"
