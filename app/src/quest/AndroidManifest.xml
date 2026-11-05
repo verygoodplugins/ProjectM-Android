@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Meta Quest 3S / 3 overlay (-PprojectmQuest=true), from docs/quest/AndroidManifest.quest.draft.xml. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
+    <uses-feature android:name="android.hardware.vr.headtracking" android:version="1" android:required="true" />
+    <uses-feature android:name="android.hardware.microphone" android:required="true" tools:replace="android:required" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:glEsVersion="0x00030000" android:required="true" />
+
+    <application android:label="@string/app_name" android:hardwareAccelerated="true">
+        <meta-data android:name="com.oculus.supportedDevices" android:value="quest3s|quest3" />
+
+        <!-- The TV launcher screen has no place on the headset: QuestActivity is the only entry point. -->
+        <activity android:name="com.example.projectm.visualizer.MainActivity" tools:node="remove" />
+
+        <activity
+            android:name=".quest.QuestActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape"
+            android:configChanges="density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="com.oculus.intent.category.VR" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

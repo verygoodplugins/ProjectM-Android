@@ -122,6 +122,17 @@ target_link_libraries(projectmtv
     ${android-lib}
 )
 
+# Meta Quest immersive host (docs/quest/README.md): OpenXR session + GLES around the same projectM build.
+# Off for the TV/phone core; core/build.gradle turns it on with -PprojectmQuest=true.
+option(PROJECTMTV_QUEST "Build the Meta Quest OpenXR host into libprojectmtv" OFF)
+if(PROJECTMTV_QUEST)
+    find_package(OpenXR REQUIRED CONFIG)  # Khronos loader AAR, provided as a Prefab package
+    target_sources(projectmtv PRIVATE quest_xr.cpp)
+    # OpenXR structs are initialized as XrFoo{XR_TYPE_FOO}; the rest is zero by design.
+    set_source_files_properties(quest_xr.cpp PROPERTIES COMPILE_OPTIONS -Wno-missing-field-initializers)
+    target_link_libraries(projectmtv OpenXR::openxr_loader)
+endif()
+
 # projectM sets CMAKE_DEBUG_POSTFIX "d", which would name the debug build libprojectmtvd.so, a
 # library ProjectMJNI never loads.
 set_target_properties(projectmtv PROPERTIES
